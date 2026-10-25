@@ -59,10 +59,10 @@ class StaffRepository:
                     WHERE status IN ('OPEN', 'IN_PROGRESS')
                     AND assigned_staff_id IS NOT NULL
                     GROUP BY assigned_staff_id"""
-            ).fetchall
+            ).fetchall()
 
             return{
-                row["saff_id"]: rowa["open_count"]
+                row["staff_id"]: row["open_count"]
                 for row in rows
                 }
 
