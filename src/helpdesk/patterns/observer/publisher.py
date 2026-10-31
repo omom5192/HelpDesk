@@ -4,12 +4,14 @@ import logging
 
 from helpdesk.patterns.observer.events import TicketEvent
 
+logger = logging.getLogger("helpdesk.events")
+
 
 class TicketEventPublisher:
     """Manage observers and publish events to them."""
 
     def __init__(self) -> None:
-        self._observers = []
+        self._observers: list = []
 
     def subscribe(self, observer) -> None:
         """Add an observer unless it is already subscribed."""
@@ -23,11 +25,9 @@ class TicketEventPublisher:
 
     def publish(self, event: TicketEvent) -> None:
         """Notify each observer; log failures and continue to the next."""
+        # Iterate over a snapshot so observers may (un)subscribe during dispatch.
         for observer in list(self._observers):
             try:
                 observer.update(event)
             except Exception:
-                logging.getLogger("helpdesk.events").exception(
-                    "Observer failed; skipping: %r",
-                    observer,
-                )
+                logger.exception("Observer failed; skipping: %r", observer)
