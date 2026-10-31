@@ -1,10 +1,14 @@
-"""Notification pipeline: component, console service, and decorator base."""
+"""Notification channel: service interface and the console implementation.
+
+The Decorator pattern itself lives in notification_decorators.py and wraps
+observers (TicketObserver), not these services.
+"""
 
 from abc import ABC, abstractmethod
 
 
 class NotificationService(ABC):
-    """Component interface for sending notifications."""
+    """Interface for a channel that delivers notification messages."""
 
     @abstractmethod
     def send(self, recipient: str, message: str) -> None:
@@ -12,21 +16,7 @@ class NotificationService(ABC):
 
 
 class ConsoleNotificationService(NotificationService):
-    """Concrete component that prints notifications to the console."""
+    """Channel that prints notifications to the console."""
 
     def send(self, recipient: str, message: str) -> None:
         print(f"[{recipient}] {message}")
-
-
-class NotificationDecorator(NotificationService):
-    """Base decorator that wraps another notification service.
-
-    By default it forwards to the wrapped service; concrete decorators
-    override ``send`` and call ``super().send(...)`` to keep the chain going.
-    """
-
-    def __init__(self, wrapped: NotificationService) -> None:
-        self._wrapped = wrapped
-
-    def send(self, recipient: str, message: str) -> None:
-        self._wrapped.send(recipient, message)

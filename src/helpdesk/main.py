@@ -1,11 +1,18 @@
-"""Application entry point and dependency composition root."""
+"""Application entry point and dependency composition root.
+
+This is the ONLY module that names concrete classes (besides
+default-in-init), which keeps the rest of the code Open/Closed.
+"""
 
 from helpdesk.cli.menu import ConsoleMenu
 from helpdesk.database.database import Database
-from helpdesk.patterns.decorator.notification import ConsoleNotificationService
+from helpdesk.patterns.decorator.notification_decorators import (
+    LoggingNotificationDecorator,
+    UrgentNotificationDecorator,
+)
 from helpdesk.patterns.observer.observer import (
     ActivityLogObserver,
-    NotificationObserver,
+    ConsoleNotificationObserver,
 )
 from helpdesk.patterns.observer.publisher import TicketEventPublisher
 from helpdesk.repositories.activity_repository import ActivityRepository
@@ -23,7 +30,13 @@ def build_application(db_path: str = "helpdesk.db") -> ConsoleMenu:
     activity_repo = ActivityRepository(database)
 
     publisher = TicketEventPublisher()
-    publisher.subscribe(NotificationObserver(ConsoleNotificationService()))
+    # Decorator stack: Logging(Urgent(Console)). Logging is outermost so
+    # urgent notifications are logged too.
+    publisher.subscribe(
+        LoggingNotificationDecorator(
+            UrgentNotificationDecorator(ConsoleNotificationObserver())
+        )
+    )
     publisher.subscribe(ActivityLogObserver(activity_repo))
 
     service = TicketService(ticket_repo, staff_repo, publisher)
@@ -35,4 +48,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

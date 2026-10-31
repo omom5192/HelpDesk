@@ -1,6 +1,12 @@
-"""Immutable ticket domain events published through the Observer pattern."""
+"""Immutable ticket domain events published through the Observer pattern.
 
-from dataclasses import dataclass
+Every event carries a ``message``: the human-readable notification text.
+It defaults to the event's ``description`` and may be overridden (e.g. by
+UrgentNotificationDecorator via ``dataclasses.replace``) without mutating
+the original event.
+"""
+
+from dataclasses import dataclass, field
 from datetime import datetime
 
 
@@ -10,6 +16,13 @@ class TicketEvent:
 
     ticket_id: int
     occurred_at: datetime
+    # kw_only keeps subclasses free to declare required positional fields.
+    message: str = field(default="", kw_only=True)
+
+    def __post_init__(self) -> None:
+        if not self.message:
+            # frozen dataclass: assign through object.__setattr__ once, at init.
+            object.__setattr__(self, "message", self.description)
 
     @property
     def name(self) -> str:

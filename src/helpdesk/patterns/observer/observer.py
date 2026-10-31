@@ -2,12 +2,18 @@
 
 from abc import ABC, abstractmethod
 
-from helpdesk.patterns.decorator.notification import NotificationService
+from helpdesk.patterns.decorator.notification import (
+    ConsoleNotificationService,
+    NotificationService,
+)
 from helpdesk.patterns.observer.events import TicketEvent
 
 
 class TicketObserver(ABC):
-    """Interface that all ticket event observers implement."""
+    """Interface that all ticket event observers implement.
+
+    Also the Decorator pattern's Component (see notification_decorators.py).
+    """
 
     @abstractmethod
     def update(self, event: TicketEvent) -> None:
@@ -16,7 +22,7 @@ class TicketObserver(ABC):
 
 
 class NotificationObserver(TicketObserver):
-    """Send a ticket event through the notification service."""
+    """Send a ticket event's message through a notification service."""
 
     def __init__(self, notifications: NotificationService) -> None:
         self._notifications = notifications
@@ -24,8 +30,19 @@ class NotificationObserver(TicketObserver):
     def update(self, event: TicketEvent) -> None:
         self._notifications.send(
             "console",
-            f"[#{event.ticket_id}] {event.description}",
+            f"[#{event.ticket_id}] {event.message}",
         )
+
+
+class ConsoleNotificationObserver(NotificationObserver):
+    """Notification observer that prints to the console.
+
+    Decorator pattern's ConcreteComponent. The console service is a
+    default-in-init, so callers can build it with no arguments.
+    """
+
+    def __init__(self, notifications: NotificationService | None = None) -> None:
+        super().__init__(notifications or ConsoleNotificationService())
 
 
 class ActivityLogObserver(TicketObserver):
