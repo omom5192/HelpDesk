@@ -2,6 +2,7 @@
 
 from abc import ABC, abstractmethod
 
+from helpdesk.patterns.decorator.notification import NotificationService
 from helpdesk.patterns.observer.events import TicketEvent
 
 
@@ -17,7 +18,7 @@ class TicketObserver(ABC):
 class NotificationObserver(TicketObserver):
     """Send a ticket event through the notification service."""
 
-    def __init__(self, notifications) -> None:
+    def __init__(self, notifications: NotificationService) -> None:
         self._notifications = notifications
 
     def update(self, event: TicketEvent) -> None:
