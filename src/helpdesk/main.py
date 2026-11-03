@@ -5,4 +5,4 @@ def main() -> None:
     print("HelpDesk - Ticket Management System")
 
 if __name__ == "__main__" :
-    main
+   main()
