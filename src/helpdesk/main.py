@@ -33,11 +33,6 @@ def build_application(db_path: str = "helpdesk.db") -> ConsoleMenu:
 def main() -> None:
     build_application().run()
 
-<<<<<<< HEAD
-if __name__ == "__main__" :
-   main()
-=======
-
 if __name__ == "__main__":
     main()
->>>>>>> d6f5ce911c39ccb1cb20d24fecdc72beb2b8212c
+
