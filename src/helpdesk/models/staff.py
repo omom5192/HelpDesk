@@ -1,8 +1,8 @@
-"""support staff model"""
+"""Support staff model."""
 from dataclasses import dataclass
 from datetime import datetime
 
-from helpdesk.models.exceptions import ValidattionError
+from helpdesk.models.exceptions import ValidationError
 
 
 @dataclass
@@ -10,9 +10,9 @@ class Staff:
     id: int | None = None
     full_name: str = ""
     role: str = "SUPPORT"
-    created_at:  datetime | None = None
+    created_at: datetime | None = None
 
     def __post_init__(self) -> None:
         if not self.full_name.strip():
-            raise ValidattionError("staff full_name mus'nt be empty.")
+            raise ValidationError("Staff full_name must not be empty.")
         self.full_name = self.full_name.strip()
