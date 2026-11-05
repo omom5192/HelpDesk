@@ -1,31 +1,64 @@
+"""Ticket service tests — the current API, on the conftest fixture db."""
+
 import pytest
-import os
+
+from helpdesk.models.exceptions import (
+    InvalidTicketTypeError,
+    TicketValidationError,
+)
+from helpdesk.patterns.observer.publisher import TicketEventPublisher
+from helpdesk.repositories.staff_repository import StaffRepository
+from helpdesk.repositories.ticket_repository import TicketRepository
 from helpdesk.services.ticket_service import TicketService
 
+
 @pytest.fixture
-def service():
-    test_db = "test_helpdesk.db"
-    if os.path.exists(test_db):
-        try:
-            os.remove(test_db)
-        except PermissionError:
-            pass
-    
-    svc = TicketService(db_path=test_db)
-    yield svc
+def service(database):
+    return TicketService(
+        TicketRepository(database),
+        StaffRepository(database),
+        TicketEventPublisher(),
+    )
 
-def test_create_ticket_success(service):
-    ticket_id = service.create_new_ticket("Baslik", "Aciklama")
-    assert ticket_id == 1
 
-def test_create_ticket_empty_title(service):
-    with pytest.raises(ValueError):
-        service.create_new_ticket("", "Aciklama")
+def make_ticket(service, **overrides):
+    payload = {
+        "title": "VPN drops every hour",
+        "description": "Connection resets at :55 every hour",
+        "category": "TECHNICAL",
+        "priority": "HIGH",
+    }
+    payload.update(overrides)
+    return service.create_ticket(**payload)
 
-def test_update_ticket_status(service):
-    ticket_id = service.create_new_ticket("Baslik", "Aciklama")
-    result = service.update_ticket_status(ticket_id, "IN_PROGRESS")
-    assert result is True
 
-    ticket = service.get_ticket_by_id(ticket_id)
-    assert ticket["status"] == "IN_PROGRESS"
+def test_create_ticket_returns_persisted_ticket(service):
+    ticket = make_ticket(service)
+
+    assert ticket.id == 1
+    assert ticket.status == "OPEN"
+    assert ticket.category == "TECHNICAL"
+    assert ticket.priority == "HIGH"
+
+
+def test_create_ticket_persists_a_round_trip(service):
+    made = make_ticket(service)
+
+    assert service.get_ticket(made.id) == made
+
+
+def test_create_ticket_rejects_empty_title(service):
+    with pytest.raises(TicketValidationError):
+        make_ticket(service, title="   ")
+
+
+def test_create_ticket_rejects_retired_category(service):
+    with pytest.raises(InvalidTicketTypeError):
+        make_ticket(service, category="SOFTWARE")
+
+
+def test_list_tickets_filters_by_status(service):
+    make_ticket(service)
+
+    assert service.list_tickets(status="OPEN")
+    assert service.list_tickets(status="CLOSED") == []

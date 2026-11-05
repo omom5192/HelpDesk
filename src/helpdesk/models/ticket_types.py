@@ -1,16 +1,22 @@
+"""Canonical ticket enums — Decision A, approved by the team.
+
+Enum values are the exact uppercase strings the frozen schema CHECK
+stores, so model -> database needs no translation. Lenient casing
+("hardware", "Hardware") is accepted at the validators layer, which
+canonicalizes to these tokens; storage only ever sees these values.
+"""
+
 from enum import Enum
 
+
 class TicketPriority(Enum):
-    """Bilet oncelik seviyeleri"""
-    LOW = "Low"
-    MEDIUM = "Medium"
-    HIGH = "High"
-    CRITICAL = "Critical"
+    LOW = "LOW"
+    MEDIUM = "MEDIUM"
+    HIGH = "HIGH"
+    CRITICAL = "CRITICAL"
+
 
 class TicketCategory(Enum):
-    """Bilet kategori ve sorun turleri"""
-    HARDWARE = "Hardware"
-    SOFTWARE = "Software"
-    NETWORK = "Network"
-    ACCESS_REQUEST = "Access Request"
-    OTHER = "Other"
+    TECHNICAL = "TECHNICAL"
+    ACCOUNT = "ACCOUNT"
+    HARDWARE = "HARDWARE"

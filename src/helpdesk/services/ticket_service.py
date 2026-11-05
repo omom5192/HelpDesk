@@ -3,7 +3,11 @@
 from datetime import UTC, datetime
 
 from helpdesk.models.ticket import Ticket
-from helpdesk.models.validators import validate_category, validate_priority
+from helpdesk.models.validators import (
+    validate_category,
+    validate_priority,
+    validate_ticket_data,
+)
 from helpdesk.patterns.observer.events import TicketCreated
 from helpdesk.patterns.observer.publisher import TicketEventPublisher
 from helpdesk.repositories.staff_repository import StaffRepository
@@ -30,6 +34,12 @@ class TicketService:
         priority: str = "MEDIUM",
         deadline=None,
     ) -> Ticket:
+        validate_ticket_data(
+            title=title,
+            description=description,
+            priority=priority,
+            category=category,
+        )
         category = validate_category(category)
         priority = validate_priority(priority)
         now = datetime.now(UTC)

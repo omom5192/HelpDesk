@@ -1,4 +1,6 @@
 
+"""Input validation: lenient casing in, canonical uppercase tokens out."""
+
 from .exceptions import TicketValidationError, InvalidTicketTypeError
 from .ticket_types import TicketPriority, TicketCategory
 
@@ -14,7 +16,8 @@ def _validate_enum_value(value: str, enum_class, field_name: str) -> str:
     normalized = value.strip().casefold()
 
     for item in enum_class:
-        # Accept both enum values ("Medium") and enum names ("MEDIUM").
+        # Decision A: values == names == uppercase storage tokens. Any
+        # casing ("hardware", "Hardware") is canonicalized here.
         if normalized in (item.value.casefold(), item.name.casefold()):
             return item.value
 

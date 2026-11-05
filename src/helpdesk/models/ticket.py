@@ -1,43 +1,52 @@
+"""Domain model of a ticket — the frozen schema's columns as one class.
 
+Category-specific fields stay optional columns (technical_component,
+affected_account, asset_tag, location). Status tokens are the uppercase
+ones the schema CHECK allows; transition logic belongs to the State
+pattern (M2's milestone), not here.
+"""
+
+from dataclasses import dataclass
+from datetime import datetime
+
+
+@dataclass
 class Ticket:
-    """Represent a HelpDesk support ticket."""
+    id: int | None = None
+    title: str = ""
+    description: str = ""
+    category: str = ""
+    priority: str = "MEDIUM"
+    status: str = "OPEN"
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+    deadline: datetime | None = None
+    assigned_staff_id: int | None = None
+    technical_component: str | None = None
+    affected_account: str | None = None
+    asset_tag: str | None = None
+    location: str | None = None
+    closed_at: datetime | None = None
+    resolution_note: str | None = None
 
-    ALLOWED_STATUSES = ("Open", "In Progress", "Resolved", "Closed")
-
-    def __init__(
-        self,
-        ticket_id: int,
-        title: str,
-        description: str,
-        priority: str = "Medium",
-    ) -> None:
-        self.ticket_id = ticket_id
-        self.title = title
-        self.description = description
-        self.priority = priority
-        self.status = "Open"
-
-    def update_status(self, new_status: str) -> bool:
-        """Update the ticket status if it is valid."""
-        if new_status not in self.ALLOWED_STATUSES:
-            print(
-                f"Geçersiz durum! "
-                f"Kullanılabilir durumlar: {list(self.ALLOWED_STATUSES)}"
-            )
-            return False
-
-        self.status = new_status
-        print(
-            f"Bilet #{self.ticket_id} durumu güncellendi: {self.status}"
-        )
-        return True
+    @property
+    def status_code(self) -> str:
+        """Uppercase status token — what the CLI prints."""
+        return self.status
 
     def get_details(self) -> dict:
-        """Return the ticket details as a dictionary."""
+        """Field -> value map for the console 'View' screen."""
         return {
-            "ID": self.ticket_id,
+            "ID": self.id,
             "Title": self.title,
             "Description": self.description,
+            "Category": self.category,
             "Priority": self.priority,
             "Status": self.status,
+            "Created": self.created_at,
+            "Updated": self.updated_at,
+            "Deadline": self.deadline,
+            "Assigned staff": self.assigned_staff_id,
+            "Closed": self.closed_at,
+            "Resolution note": self.resolution_note,
         }
