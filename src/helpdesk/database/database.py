@@ -92,7 +92,3 @@ class Database:
         conn.row_factory = sqlite3.Row   #name-based column access in repos
         conn.execute("PRAGMA foreign_keys = ON")   #PER-CONNECTION must repeat 
         return conn
-            
-          
-        
-    
