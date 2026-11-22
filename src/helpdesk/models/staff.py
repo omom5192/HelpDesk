@@ -1,4 +1,4 @@
-"""support staff model"""
+"""Support staff model."""
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -14,5 +14,5 @@ class Staff:
 
     def __post_init__(self) -> None:
         if not self.full_name.strip():
-            raise ValidationError("staff full_name mus'nt be empty.")
+            raise ValidationError("Staff full_name must not be empty.")
         self.full_name = self.full_name.strip()
