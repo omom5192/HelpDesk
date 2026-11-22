@@ -176,7 +176,7 @@ flowchart TB
     AS --> SR[StaffRepository]
     TS --> PUB[TicketEventPublisher]
     AS --> PUB
-    PUB --> DEC[Logging(Urgent(Console))]
+    PUB --> DEC["Logging(Urgent(Console))"]
     PUB --> ALO[ActivityLogObserver]
     DEC --> CON[ConsoleNotificationObserver]
     ALO --> AR[ActivityRepository]
