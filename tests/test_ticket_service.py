@@ -72,6 +72,7 @@ def test_create_ticket_persists_and_notifies(
         description="Connection resets at :55 every hour",
         category="TECHNICAL",
         priority="HIGH",
+        component="email",
     )
 
     assert ticket.id is not None

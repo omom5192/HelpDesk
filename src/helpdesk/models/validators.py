@@ -1,46 +1,64 @@
+"""Shared input validation helpers (BR-6/BR-9).
 
-"""Input validation: lenient casing in, canonical uppercase tokens out."""
+Validation is lenient on input casing/whitespace but strict on storage:
+callers always receive canonical uppercase tokens.
+"""
 
-from .exceptions import TicketValidationError, InvalidTicketTypeError
-from .ticket_types import TicketPriority, TicketCategory
+from helpdesk.models.exceptions import InvalidTicketTypeError, TicketValidationError, ValidationError
+from helpdesk.models.ticket_types import (
+    TICKET_CATEGORIES,
+    TICKET_PRIORITIES,
+)
 
 
-def _validate_enum_value(value: str, enum_class, field_name: str) -> str:
-    """Validate an enum value and return its canonical string value."""
+def validate_title(title: str) -> str:
+    """Title must be 3-120 characters after trimming."""
+    trimmed = (title or "").strip()
+    if not 3 <= len(trimmed) <= 120:
+        raise ValidationError("Title must be 3-120 characters.")
+    return trimmed
 
-    if not isinstance(value, str):
-        raise InvalidTicketTypeError(
-            f"{field_name} must be a string."
+
+def validate_description(description: str) -> str:
+    """Description must be at least 10 characters after trimming."""
+    trimmed = (description or "").strip()
+    if len(trimmed) < 10:
+        raise ValidationError("Description must be at least 10 characters.")
+    return trimmed
+
+
+def validate_resolution_note(note: str) -> str:
+    """BR-3: resolving requires a real note (min 3 chars)."""
+    trimmed = (note or "").strip()
+    if len(trimmed) < 3:
+        raise ValidationError(
+            "A resolution note (min 3 chars) is required to resolve."
         )
-
-    normalized = value.strip().casefold()
-
-    for item in enum_class:
-        # Decision A: values == names == uppercase storage tokens. Any
-        # casing ("hardware", "Hardware") is canonicalized here.
-        if normalized in (item.value.casefold(), item.name.casefold()):
-            return item.value
-
-    valid_options = [item.value for item in enum_class]
-
-    raise InvalidTicketTypeError(
-        f"Invalid {field_name}: '{value}'. "
-        f"Valid options: {valid_options}"
-    )
+    return trimmed
 
 
-def validate_priority(priority: str) -> str:
-    """Validate a ticket priority."""
-    return _validate_enum_value(
-        priority, TicketPriority, "priority"
-    )
+def validate_category(value: str) -> str:
+    """Canonicalize a category to one of the schema tokens."""
+    if not isinstance(value, str):
+        raise ValidationError(f"Category must be text, got {type(value).__name__}.")
+    canonical = value.strip().upper()
+    if canonical not in TICKET_CATEGORIES:
+        raise ValidationError(
+            f"Category must be one of: {', '.join(TICKET_CATEGORIES)}"
+        )
+    return canonical
 
 
-def validate_category(category: str) -> str:
-    """Validate a ticket category."""
-    return _validate_enum_value(
-        category, TicketCategory, "category"
-    )
+def validate_priority(value: str) -> str:
+    """Canonicalize a priority to one of the schema tokens."""
+    if not isinstance(value, str):
+        raise ValidationError(f"Priority must be text, got {type(value).__name__}.")
+    canonical = value.strip().upper()
+    if canonical not in TICKET_PRIORITIES:
+        raise ValidationError(
+            f"Priority must be one of: {', '.join(TICKET_PRIORITIES)}"
+        )
+    return canonical
 
 
 def validate_ticket_data(
@@ -49,19 +67,14 @@ def validate_ticket_data(
     priority: str,
     category: str,
 ) -> bool:
-    """Validate all ticket input data."""
-
+    """Validate all ticket input data (backward-compatible helper)."""
     if not title or not title.strip():
-        raise TicketValidationError(
-            "Ticket title cannot be empty."
-        )
-
+        raise TicketValidationError("Ticket title cannot be empty.")
     if not description or not description.strip():
-        raise TicketValidationError(
-            "Ticket description cannot be empty."
-        )
-
-    validate_priority(priority)
-    validate_category(category)
-
+        raise TicketValidationError("Ticket description cannot be empty.")
+    try:
+        validate_priority(priority)
+        validate_category(category)
+    except ValidationError as exc:
+        raise InvalidTicketTypeError(str(exc)) from exc
     return True

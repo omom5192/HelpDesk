@@ -48,21 +48,25 @@ CREATE TABLE IF NOT EXISTS notifications (
     sent_at   TEXT NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_tickets_status   ON tickets (status);
-CREATE INDEX IF NOT EXISTS idx_tickets_staff   ON tickets (assigned_staff_id);
+-- Week-3 hardening: indexes for the filters the repositories actually use.
+CREATE INDEX IF NOT EXISTS idx_tickets_status    ON tickets (status);
+CREATE INDEX IF NOT EXISTS idx_tickets_priority  ON tickets (priority);
+CREATE INDEX IF NOT EXISTS idx_tickets_category  ON tickets (category);
+CREATE INDEX IF NOT EXISTS idx_tickets_staff_id  ON tickets (assigned_staff_id);
+CREATE INDEX IF NOT EXISTS idx_tickets_deadline  ON tickets (deadline);
 CREATE INDEX IF NOT EXISTS idx_activity_ticket   ON ticket_activity (ticket_id);
 
 """
 
 
 class Database:
-    """connection lifcycle owner. context manager guarantee close()
-    and give the service layer explicit commit-vs-read semantics."""
+    """Connection lifecycle owner. Context managers guarantee close() and
+    give the service layer explicit commit-vs-read semantics."""
     def __init__(self, db_path: str | Path) -> None:
         self._path = Path(db_path)
 
     def initialize(self) -> None:
-        """Creat tables/indexes if thy don't exist (safe to call twice.)"""
+        """Create tables/indexes if they don't exist (safe to call twice)."""
         with closing(self._connect()) as conn:
             conn.executescript(SCHEMA)
             conn.commit()

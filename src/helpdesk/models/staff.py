@@ -16,3 +16,8 @@ class Staff:
         if not self.full_name.strip():
             raise ValidationError("Staff full_name must not be empty.")
         self.full_name = self.full_name.strip()
+
+    @property
+    def name(self) -> str:
+        """Alias used by assignment/demo helpers."""
+        return self.full_name

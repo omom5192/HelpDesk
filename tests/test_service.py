@@ -4,7 +4,7 @@ import pytest
 
 from helpdesk.models.exceptions import (
     InvalidTicketTypeError,
-    TicketValidationError,
+    ValidationError,
 )
 from helpdesk.patterns.observer.publisher import TicketEventPublisher
 from helpdesk.repositories.staff_repository import StaffRepository
@@ -27,6 +27,7 @@ def make_ticket(service, **overrides):
         "description": "Connection resets at :55 every hour",
         "category": "TECHNICAL",
         "priority": "HIGH",
+        "component": "email",
     }
     payload.update(overrides)
     return service.create_ticket(**payload)
@@ -48,7 +49,7 @@ def test_create_ticket_persists_a_round_trip(service):
 
 
 def test_create_ticket_rejects_empty_title(service):
-    with pytest.raises(TicketValidationError):
+    with pytest.raises(ValidationError, match="Title"):
         make_ticket(service, title="   ")
 
 

@@ -1,22 +1,28 @@
-"""Canonical ticket enums — Decision A, approved by the team.
+"""Ticket value sets (requirements BR-9)."""
 
-Enum values are the exact uppercase strings the frozen schema CHECK
-stores, so model -> database needs no translation. Lenient casing
-("hardware", "Hardware") is accepted at the validators layer, which
-canonicalizes to these tokens; storage only ever sees these values.
-"""
-
-from enum import Enum
+from enum import StrEnum
 
 
-class TicketPriority(Enum):
+class TicketCategory(StrEnum):
+    TECHNICAL = "TECHNICAL"
+    ACCOUNT = "ACCOUNT"
+    HARDWARE = "HARDWARE"
+
+
+class TicketPriority(StrEnum):
     LOW = "LOW"
     MEDIUM = "MEDIUM"
     HIGH = "HIGH"
     CRITICAL = "CRITICAL"
 
 
-class TicketCategory(Enum):
-    TECHNICAL = "TECHNICAL"
-    ACCOUNT = "ACCOUNT"
-    HARDWARE = "HARDWARE"
+class TicketStatus(StrEnum):
+    OPEN = "OPEN"
+    IN_PROGRESS = "IN_PROGRESS"
+    RESOLVED = "RESOLVED"
+    CLOSED = "CLOSED"
+
+
+TICKET_CATEGORIES: tuple[str, ...] = tuple(t.value for t in TicketCategory)
+TICKET_PRIORITIES: tuple[str, ...] = tuple(t.value for t in TicketPriority)
+TICKET_STATUSES: tuple[str, ...] = tuple(t.value for t in TicketStatus)

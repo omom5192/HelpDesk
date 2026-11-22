@@ -1,15 +1,21 @@
 """Persistence for tickets on the frozen database schema (owned by M1).
 
 Accesses the database exclusively through the Database class:
-transaction() for writes, connection() for reads. Dates cross the
-sqlite boundary as ISO-8601 strings, exactly like the other repositories.
+transaction() for writes, connection() for reads. Dates cross the sqlite
+boundary as ISO-8601 strings, exactly like the other repositories.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 
 from helpdesk.database.database import Database
 from helpdesk.models.exceptions import NotFoundError
-from helpdesk.models.ticket import Ticket
+from helpdesk.models.ticket import (
+    AccountTicket,
+    HardwareTicket,
+    TechnicalTicket,
+    Ticket,
+)
+from helpdesk.patterns.state.states import state_for
 
 _COLUMNS = (
     "id", "title", "description", "category", "priority", "status",
@@ -19,6 +25,12 @@ _COLUMNS = (
 )
 _INSERT_COLUMNS = tuple(column for column in _COLUMNS if column != "id")
 _DATETIME_COLUMNS = ("created_at", "updated_at", "deadline", "closed_at")
+
+_PRODUCT_BY_CATEGORY = {
+    "TECHNICAL": TechnicalTicket,
+    "ACCOUNT": AccountTicket,
+    "HARDWARE": HardwareTicket,
+}
 
 
 def _encode(value):
@@ -39,9 +51,16 @@ class TicketRepository:
         self._db = database
 
     def save(self, ticket: Ticket) -> Ticket:
-        """INSERT when the ticket is new (id is None), otherwise UPDATE."""
+        """INSERT when the ticket is new (id is None), otherwise UPDATE (upsert)."""
+        # updated_at is NOT NULL: a directly constructed product may leave it
+        # unset. Seeding it from created_at keeps round-trips lossless.
+        if ticket.updated_at is None:
+            ticket.updated_at = ticket.created_at or datetime.now(UTC)
+
         values = {
-            column: _encode(getattr(ticket, column))
+            column: _encode(
+                ticket.status_code if column == "status" else getattr(ticket, column)
+            )
             for column in _INSERT_COLUMNS
         }
 
@@ -74,9 +93,9 @@ class TicketRepository:
             ).fetchone()
 
         if row is None:
-            raise NotFoundError(f"Ticket with id {ticket_id} not found")
+            raise NotFoundError(f"Ticket #{ticket_id} does not exist.")
 
-        return self._hydrate(row)
+        return self._row_to_ticket(row)
 
     def find(
         self,
@@ -105,11 +124,16 @@ class TicketRepository:
 
         with self._db.connection() as conn:
             rows = conn.execute(
-                f"SELECT * FROM tickets {where} ORDER BY id",
-                parameters,
+                f"SELECT * FROM tickets {where} ORDER BY id", parameters
             ).fetchall()
 
-        return [self._hydrate(row) for row in rows]
+        return [self._row_to_ticket(row) for row in rows]
 
-    def _hydrate(self, row) -> Ticket:
-        return Ticket(**{column: _decode(row, column) for column in _COLUMNS})
+    def _row_to_ticket(self, row) -> Ticket:
+        kwargs = {column: _decode(row, column) for column in _COLUMNS}
+        status = kwargs.pop("status")
+        # Infrastructure lookup, deliberately NOT a GoF pattern.
+        product_class = _PRODUCT_BY_CATEGORY[row["category"]]
+        ticket = product_class(**kwargs)
+        ticket.set_state_from_code(status)
+        return ticket
