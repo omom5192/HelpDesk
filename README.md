@@ -11,9 +11,9 @@ through its lifecycle. The interesting part (for the course at least) is *how*
 those decisions are made in the code — none of the rules are scattered around
 in `if` statements.
 
-## Running it
+## Installation and running
 
-From the project folder:
+This section is the installation guide. From the project folder:
 
 ```powershell
 .\.venv\Scripts\Activate.ps1
@@ -129,15 +129,16 @@ tests/          pytest suite
 Domain code never imports the CLI or a service, and the only SQL lives in the
 database/repositories layer.
 
-Where each pattern ended up:
+Here are the five patterns with their actual roles, so you can see which class
+plays which part:
 
-| Pattern | Where it lives |
-| --- | --- |
-| Factory Method | `patterns/factory/` — `TicketCreator`, three concrete creators and `CREATOR_REGISTRY`. `Ticket` is the product base; `TechnicalTicket`, `AccountTicket` and `HardwareTicket` are the products. |
-| State | `patterns/state/` — `TicketState` plus Open / InProgress / Resolved / Closed. `Ticket` is the context and just delegates its lifecycle calls. |
-| Strategy | `patterns/strategy/` — two ordering strategies and the fewest-open assignment strategy. `TicketService` and `AssignmentService` hold one each and can swap them at runtime. |
-| Observer | `patterns/observer/` — `TicketEventPublisher` notifies the console and activity-log observers about created/assigned/status-changed events. |
-| Decorator | `patterns/decorator/notification_decorators.py` — wraps the same `TicketObserver` interface. `main.py` builds `Logging(Urgent(Console))`. |
+| Pattern | Roles in this project | Files |
+| --- | --- | --- |
+| Factory Method | Creator: `TicketCreator`. Concrete Creators: `TechnicalTicketCreator`, `AccountTicketCreator`, `HardwareTicketCreator`. Product: `Ticket`. Concrete Products: `TechnicalTicket`, `AccountTicket`, `HardwareTicket`. `CREATOR_REGISTRY` maps category tokens to creators. | `patterns/factory/`, `models/ticket.py` |
+| State | Context: `Ticket`. Abstract State: `TicketState`. Concrete States: `OpenState`, `InProgressState`, `ResolvedState`, `ClosedState` (shared singletons). | `patterns/state/`, `models/ticket.py` |
+| Strategy | Abstract Strategies: `TicketOrderingStrategy`, `AssignmentStrategy`. Concrete Strategies: `PriorityOrderingStrategy`, `DeadlineOrderingStrategy`, `FewestOpenTicketsStrategy`. Contexts: `TicketService`, `AssignmentService`. | `patterns/strategy/`, `services/` |
+| Observer | Subject: `TicketEventPublisher`. Observer interface: `TicketObserver`. Concrete Observers: `ConsoleNotificationObserver`, `ActivityLogObserver`. Events are immutable classes in `events.py`. | `patterns/observer/` |
+| Decorator | Component: `TicketObserver`. Base Decorator: `NotificationDecorator`. Concrete Decorators: `LoggingNotificationDecorator`, `UrgentNotificationDecorator`. The stack is assembled in `build_application()`. | `patterns/decorator/`, `main.py` |
 
 Two things that look like patterns but aren't: `state_for()` in the state module
 is just a dict lookup to rebuild a state when reading from SQLite (no creator
@@ -240,7 +241,9 @@ frozen at `FAKE_NOW = 2026-11-02 09:00Z`.
 tests cover these. Every test gets its own temporary database, so they don't
 interfere with each other or with your real `helpdesk.db`.
 
-## Tests and CI
+## Test documentation and CI
+
+This is the automated test guide. Run everything with:
 
 ```powershell
 pytest
@@ -248,7 +251,20 @@ pytest
 
 Last run here: **207 passed, 7 skipped**. The skips are on purpose — they're the
 cells of the state matrix where the transition is allowed, so there's no
-rejection message to check.
+rejection message to check. The manual walkthrough above is the manual test plan.
+
+| Test file(s) | What they check |
+| --- | --- |
+| `test_state.py`, `test_state_matrix.py`, `test_reopen_window.py` | Lifecycle rules, all 16 transitions and the 7-day boundary. |
+| `test_factory.py` | Creators, mandatory category fields and the three products. |
+| `test_strategy.py` | Priority/deadline ordering and least-loaded assignment. |
+| `test_validators.py`, `test_validator_edges.py` | Uppercase tokens, lengths, deadlines and boundary values. |
+| `test_repositories.py`, `test_repository_edges.py` | SQL queries, transactions and edge cases. |
+| `test_database.py`, `test_seed.py` | Schema setup and idempotent seed data. |
+| `test_observer.py`, `test_decorator.py` | Event publication and the decorator stack. |
+| `test_service.py`, `test_ticket_service.py`, `test_ticket.py` | Service and model behaviour. |
+| `test_integration.py`, `test_integration_suite.py` | Flows crossing several layers. |
+| `test_cli_parsing.py`, `test_smoke.py`, `test_exceptions.py` | Menu input, startup and error types. |
 
 GitHub Actions runs the same suite on `windows-latest` with Python 3.13
 (`.github/workflows/ci.yml`). We need 3.11+ anyway because of `StrEnum`.
