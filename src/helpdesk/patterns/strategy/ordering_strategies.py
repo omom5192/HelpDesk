@@ -1,11 +1,7 @@
-"""Strategy: ticket ordering policies.
+"""Ticket ordering policies.
 
-Strategy: AbstractStrategy -> TicketOrderingStrategy
-Strategy: ConcreteStrategy -> PriorityOrderingStrategy (BR-4)
-Strategy: ConcreteStrategy -> DeadlineOrderingStrategy (BR-5)
-Context: services.ticket_service receives strategies through this common
-interface and switches them at runtime (FR-10). Strategies return a NEW
-sorted list and never mutate their input.
+TicketService holds one of these and calls order() when listing tickets.
+Sorting returns a new list; the input is never changed.
 """
 
 from abc import ABC, abstractmethod
@@ -34,7 +30,7 @@ def _as_utc(value: datetime) -> datetime:
 
 
 class TicketOrderingStrategy(ABC):
-    """Strategy: AbstractStrategy."""
+    """Common interface for ordering policies."""
 
     @abstractmethod
     def order(self, tickets: "Sequence[Ticket]") -> "list[Ticket]":
@@ -42,7 +38,7 @@ class TicketOrderingStrategy(ABC):
 
 
 class PriorityOrderingStrategy(TicketOrderingStrategy):
-    """Strategy: ConcreteStrategy - CRITICAL>HIGH>MEDIUM>LOW, older first (BR-4)."""
+    """CRITICAL first, oldest first inside a priority (BR-4)."""
 
     def order(self, tickets: "Sequence[Ticket]") -> "list[Ticket]":
         return sorted(
@@ -55,7 +51,7 @@ class PriorityOrderingStrategy(TicketOrderingStrategy):
 
 
 class DeadlineOrderingStrategy(TicketOrderingStrategy):
-    """Strategy: ConcreteStrategy - earliest deadline first, nulls last (BR-5)."""
+    """Earliest deadline first, tickets without one last (BR-5)."""
 
     def order(self, tickets: "Sequence[Ticket]") -> "list[Ticket]":
         def key(ticket: "Ticket") -> tuple:

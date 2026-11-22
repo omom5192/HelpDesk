@@ -1,4 +1,4 @@
-"""Factory Method: ConcreteCreator for TECHNICAL tickets."""
+"""Creator for TECHNICAL tickets."""
 
 from datetime import datetime
 from typing import TYPE_CHECKING
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 
 
 class TechnicalTicketCreator(TicketCreator):
-    """Factory Method: ConcreteCreator - builds TechnicalTicket."""
+    """Builds a TechnicalTicket with a validated component."""
 
     category = "TECHNICAL"
     default_priority = TicketPriority.MEDIUM

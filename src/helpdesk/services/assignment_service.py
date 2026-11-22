@@ -1,6 +1,6 @@
 """AssignmentService - dispatch policy as a Strategy context (Week 2).
 
-Strategy: Context -> this service (like TicketService for ordering).
+This service holds the assignment policy, like TicketService holds ordering.
 
 BR-7: assign only in OPEN or IN_PROGRESS.
 BR-8: workload = OPEN + IN_PROGRESS tickets; AUTO assignment picks the
@@ -43,7 +43,7 @@ StaffAssigned = StaffAssignedEvent
 
 
 class AssignmentService:
-    """Strategy: Context - holds one AssignmentStrategy, hot-swappable."""
+    """Holds the assignment policy and can swap it at runtime."""
 
     def __init__(
         self,

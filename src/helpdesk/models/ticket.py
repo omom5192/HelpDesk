@@ -30,8 +30,8 @@ class Ticket:
     location: str | None = None  # HARDWARE
     closed_at: datetime | None = None
     resolution_note: str | None = None
-    # State: Context. States are stateless singletons; sharing one default
-    # instance is an intended, documented design decision.
+    # One state object per status is enough - the states have no data of
+    # their own, so sharing the instance is fine.
     state: TicketState = OPEN_STATE
 
     def __post_init__(self) -> None:
@@ -114,7 +114,7 @@ class Ticket:
         self.state = state_for(status_code)
 
 
-# --- Factory Method: Product base is Ticket (above) -------------------
+# --- concrete ticket types ---------------------------------------------
 # ConcreteProducts (Week 2). Category-specific rules from BR-6 live here.
 
 _TECHNICAL_COMPONENTS: tuple[str, ...] = (
@@ -128,7 +128,7 @@ _TECHNICAL_COMPONENTS: tuple[str, ...] = (
 
 
 class TechnicalTicket(Ticket):
-    """Factory Method: Product - component-safe technical failures."""
+    """Technical ticket: component-based escalation."""
 
     @property
     def component(self) -> str | None:
@@ -145,7 +145,7 @@ class TechnicalTicket(Ticket):
 
 
 class AccountTicket(Ticket):
-    """Factory Method: Product - identity/account lifecycle."""
+    """Account ticket: identity and login issues."""
 
     def is_lockout(self) -> bool:
         """Word-boundary match avoids the 'unblocked' false positive."""
@@ -154,7 +154,7 @@ class AccountTicket(Ticket):
 
 
 class HardwareTicket(Ticket):
-    """Factory Method: Product - physical assets."""
+    """Hardware ticket: physical asset issues."""
 
     def is_warranty_eligible(self) -> bool:
         """Documented stand-in: a deterministic policy until a real field exists."""

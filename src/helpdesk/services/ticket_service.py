@@ -29,7 +29,7 @@ class TicketService:
         self._tickets = ticket_repository
         self._staff = staff_repository
         self._events = publisher
-        # Strategy: Context owns one policy, hot-swappable at runtime (FR-10).
+        # One ordering policy at a time; see FR-10.
         self._ordering: TicketOrderingStrategy = PriorityOrderingStrategy()
 
     def set_ordering_strategy(self, strategy: TicketOrderingStrategy) -> None:

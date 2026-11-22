@@ -1,8 +1,6 @@
-"""State pattern (GoF: Behavioral) - abstract state.
+"""Base class for the ticket states.
 
-State: AbstractState (TicketState).
-
-The lifecycle matrix (BR-1) lives ONLY in this package: each concrete state
+The lifecycle matrix (BR-1) lives only in this package: each concrete state
 implements either a real transition or a rejection raising
 InvalidTransitionError with the reason. No other file branches on status.
 """

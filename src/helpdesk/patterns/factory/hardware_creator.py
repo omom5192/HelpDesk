@@ -1,4 +1,4 @@
-"""Factory Method: ConcreteCreator for HARDWARE tickets."""
+"""Creator for HARDWARE tickets."""
 
 from datetime import datetime
 from typing import TYPE_CHECKING
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 
 
 class HardwareTicketCreator(TicketCreator):
-    """Factory Method: ConcreteCreator - builds HardwareTicket."""
+    """Builds a HardwareTicket with tag and location."""
 
     category = "HARDWARE"
     default_priority = TicketPriority.LOW

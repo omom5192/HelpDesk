@@ -1,4 +1,4 @@
-"""Observer: interface + ConcreteObservers."""
+"""Observer interface and the two concrete observers."""
 
 from abc import ABC, abstractmethod
 
@@ -10,14 +10,14 @@ from helpdesk.patterns.observer.events import TicketEvent
 
 
 class TicketObserver(ABC):
-    """Observer: interface. Also the Decorator pattern's Component."""
+    """Implemented by observers; also the decorators' component interface."""
 
     @abstractmethod
     def update(self, event: TicketEvent) -> None: ...
 
 
 class NotificationObserver(TicketObserver):
-    """Observer: ConcreteObserver - dispatches through the notification pipeline."""
+    """Sends every event through the notification pipeline."""
 
     def __init__(self, notifications: NotificationService) -> None:
         self._notifications = notifications
@@ -40,7 +40,7 @@ class ConsoleNotificationObserver(NotificationObserver):
 
 
 class ActivityLogObserver(TicketObserver):
-    """Observer: ConcreteObserver - appends ticket_activity rows."""
+    """Writes each event into the ticket_activity table."""
 
     def __init__(self, activity) -> None:
         self._activity = activity

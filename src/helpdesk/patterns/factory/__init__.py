@@ -1,6 +1,6 @@
-"""Factory Method (GoF: Creational) - creator registry.
+"""Registry of the category creators.
 
-The ONLY public entry point consumers should import. Keys are category
+This is the public entry point consumers should import. Keys are category
 codes; adding a category = new creator class + one line here (the
 Open/Closed payoff).
 """

@@ -1,4 +1,4 @@
-"""Factory Method: ConcreteCreator for ACCOUNT tickets."""
+"""Creator for ACCOUNT tickets."""
 
 from datetime import datetime
 from typing import TYPE_CHECKING
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 
 class AccountTicketCreator(TicketCreator):
-    """Factory Method: ConcreteCreator - builds AccountTicket."""
+    """Builds an AccountTicket with the required account field."""
 
     category = "ACCOUNT"
     default_priority = TicketPriority.HIGH

@@ -1,9 +1,6 @@
-"""Strategy: staff-assignment policies.
+"""Staff assignment policies.
 
-Strategy: AbstractStrategy -> AssignmentStrategy
-Strategy: ConcreteStrategy -> FewestOpenTicketsStrategy (BR-8)
-Context: AssignmentService loads candidates (staff ids ordered by staff
-record age) and StaffRepository.count_open_workloads().
+AssignmentService asks the selected strategy which staff member to use.
 """
 
 from abc import ABC, abstractmethod
@@ -13,7 +10,7 @@ from helpdesk.models.exceptions import DomainError
 
 
 class AssignmentStrategy(ABC):
-    """Strategy: AbstractStrategy."""
+    """Common interface for assignment policies."""
 
     @abstractmethod
     def select(
@@ -23,7 +20,7 @@ class AssignmentStrategy(ABC):
 
 
 class FewestOpenTicketsStrategy(AssignmentStrategy):
-    """Strategy: ConcreteStrategy - fewest OPEN+IN_PROGRESS tickets wins (BR-8)."""
+    """Picks the staff member with the fewest open tickets (BR-8)."""
 
     def select(
         self, candidates: Sequence[int], open_workloads: Mapping[int, int]

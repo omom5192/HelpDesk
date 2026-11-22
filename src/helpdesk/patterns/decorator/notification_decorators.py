@@ -1,15 +1,8 @@
-"""Decorator pattern (GoF: Structural) - optional notification extras.
+"""Optional extras for notifications.
 
-Decorator: Component          -> TicketObserver (from Observer, W1)
-Decorator: ConcreteComponent  -> ConsoleNotificationObserver
-Decorator: BaseDecorator      -> NotificationDecorator
-Decorator: ConcreteDecorators -> LoggingNotificationDecorator,
-                                 UrgentNotificationDecorator
-
-The composition root (main.py) builds Logging(Urgent(Console)). Logging sits
-OUTERMOST so every notification is recorded, including urgent ones. Each
-decorator adds exactly one concern and delegates the rest - no observer class
-was edited, and new combinations can be stacked at runtime.
+These wrap a TicketObserver, so main.py can stack them however it likes
+without touching the observers themselves. Logging is outermost so it
+sees urgent messages too.
 """
 
 from dataclasses import replace
@@ -30,7 +23,7 @@ def _priority_of(event: Any) -> str:
 
 
 class NotificationDecorator(TicketObserver):
-    """Decorator: BaseDecorator - forwards everything to the wrapped component."""
+    """Pass everything through to the wrapped observer."""
 
     def __init__(self, wrapped: TicketObserver) -> None:
         self._wrapped = wrapped
@@ -40,7 +33,7 @@ class NotificationDecorator(TicketObserver):
 
 
 class LoggingNotificationDecorator(NotificationDecorator):
-    """Decorator: ConcreteDecorator - records every notification seen."""
+    """Keeps a log of every notification that comes through."""
 
     def __init__(self, wrapped: TicketObserver) -> None:
         super().__init__(wrapped)
@@ -55,7 +48,7 @@ class LoggingNotificationDecorator(NotificationDecorator):
 
 
 class UrgentNotificationDecorator(NotificationDecorator):
-    """Decorator: ConcreteDecorator - prefixes [URGENT] for HIGH/CRITICAL.
+    """Mark HIGH/CRITICAL notifications as urgent.
 
     Events stay immutable: we forward a shallow copy with the message
     prefixed (dataclasses.replace). The original event is untouched - the

@@ -1,179 +1,152 @@
-# HelpDesk - Ticket Management System
+# HelpDesk - ticket management system
 
-A console application for creating, listing, ordering, assigning and resolving
-support tickets, built as a design-patterns course project. It implements all
-five GoF patterns used in the brief: **Factory Method, State, Strategy,
-Observer and Decorator**.
+This is the console app we built for the design patterns course. It started out
+as a small "create a ticket, print it" program and grew into something with all
+five patterns from the brief actually wired together: Factory Method, State,
+Strategy, Observer and Decorator.
 
----
+The idea is simple: a support agent creates a ticket, picks one of three
+categories, gives it a priority, assigns it to someone, and then moves it
+through its lifecycle. The interesting part (for the course at least) is *how*
+those decisions are made in the code — none of the rules are scattered around
+in `if` statements.
 
-## 1. Quick start (Windows / PowerShell)
+## Running it
+
+From the project folder:
 
 ```powershell
-cd E:\PROGRAMMING\vs-code\HelpDesk-shared
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
 python -m pip install -e .
 python -m pytest -q
 python -m helpdesk.database.seed
-helpdesk                     # or: python -m helpdesk.main
+helpdesk
 ```
 
-The seed is idempotent: running it twice refuses to duplicate data. It creates
-6 staff and 11 tickets (`helpdesk.db`, ignored by Git).
+If `helpdesk` isn't on your PATH, `python -m helpdesk.main` does the same thing.
 
-Console menu:
+The seed only needs running once. If you run it again it just says it refuses
+to duplicate data. To start over, delete `helpdesk.db` and seed again — the
+database file is ignored by Git, so it never ends up in a commit.
 
-| Option | Action |
-| --- | --- |
-| `1` | Create a ticket (prompts category-specific mandatory fields) |
-| `2` | List tickets (current ordering strategy) |
-| `3` | View a ticket (`HD-0001` or the numeric id) |
-| `4` | Switch ordering strategy (Priority BR-4 / Deadline BR-5) |
-| `5` | Assign a ticket (explicit staff id or AUTO = fewest open, BR-8) |
-| `6` | Show staff workloads (OPEN + IN_PROGRESS counts) |
-| `7` | Transition a ticket (start / resolve / close / reopen) |
-| `0` | Exit |
+## The menu
 
----
-
-## 2. Manual test plan (fresh seeded DB — new tickets start at HD-0012)
-
-### Navigation edges
 ```
-Choose: clear              -> Unknown option.
-Choose: 3 -> 12            -> Use the HD-<id> form.
-Choose: 3 -> HD-9999       -> Rejected: Ticket #9999 does not exist.
-Choose: 5 -> HD-9999       -> Rejected: Ticket #9999 does not exist.
-Choose: 7 -> nope          -> Use the HD-<id> form.
-Choose: 0                  -> Bye.
+[1] Create  [2] List  [3] View  [4] Ordering  [5] Assign  [6] Workloads  [7] Transition  [0] Exit
 ```
 
-### Create all three categories
-```
-[1] Title: HP-0987
-    Description: Printer stopped responding after update
-    Category: 1 (TECHNICAL)   Priority: 2 (MEDIUM)
-    Deadline: 2030-12-06 12:00   Component: printer
-    -> [LOG] ... [console] [#12] Ticket 'HP-0987' created [TECHNICAL/MEDIUM]
-    -> Created ticket HD-0012 [OPEN]
+- **1** asks for a title and description, then category and priority as numbers.
+  Depending on the category it asks for one extra field: a component for
+  TECHNICAL, an account name for ACCOUNT, or an asset tag + location for
+  HARDWARE. Leave the deadline empty if there isn't one.
+- **2** lists tickets using whichever ordering strategy is currently selected.
+- **3** shows one ticket — type `HD-0012` or just `12`.
+- **4** switches between priority order and deadline order while the app is
+  running. Nothing needs restarting.
+- **5** assigns a ticket. Type a staff id, or just press Enter (typing `AUTO`
+  works too) and the app picks the person with the fewest open tickets.
+- **6** prints the workload of every staff member.
+- **7** moves a ticket: start progress, resolve, close or reopen.
+- **0** exits.
 
-[1] Category: 2 (ACCOUNT)  Priority: 4 (CRITICAL)  Affected account: registrar.office
-    -> [URGENT] notification appears (HIGH/CRITICAL only)
+Bad input doesn't crash anything. You get a short `Rejected: ...` or a hint and
+the menu comes back.
 
-[1] Category: 3 (HARDWARE) Priority: 1 (LOW)
-    Asset tag: pc-1234 (stored as PC-1234)   Location: Lab 4
-```
+## A quick manual walkthrough
 
-Validation checks (each leaves the ticket count unchanged):
-```
-empty title        -> Rejected: Title must be 3-120 characters.
-short description  -> Rejected: Description must be at least 10 characters.
-bad component      -> Rejected: Component 'x' is unknown. Allowed: network, email, ...
-missing component  -> Rejected: 'component' is required for TECHNICAL tickets ...
-bad category key   -> Option not recognized.   (prompt repeats)
-bad deadline       -> That is not a date. Retry (YYYY-MM-DD HH:MM) or empty:
-```
+This assumes a fresh seeded database, so the tickets you create start at
+`HD-0012`.
 
-### List / View / Ordering
-```
-[2] default order = priority: CRITICAL first, oldest first inside a priority.
-[4] -> 2  -> "OK - deadline ordering active."
-[2] now: tickets with deadlines first (earliest first, nulls last).
-[4] -> 9  -> "Unknown option - ordering strategy unchanged."
-[3] HD-0012 -> ID / Title / Description / Category / Priority / Status /
-               Deadline / Assigned staff / Closed / Resolution note
-```
+Create one of each category:
 
-### Assignment (BR-7 / BR-8)
 ```
-[5] HD-0012 -> AUTO (or Enter) -> Assigned HD-0012 -> staff #5.
-[5] HD-0013 -> 2               -> Assigned HD-0013 -> staff #2.
-[5] HD-0014 -> abc             -> Not a staff id: 'abc' - nothing changed.
-[5] HD-0009 (RESOLVED)         -> BR-7: only OPEN or IN_PROGRESS tickets ...
-[6] shows workloads: 1=2, 2=3, 3=1, 4=1, 5=1, 6=0 (after the assignments above).
+Choose: 1
+Title: HP-0987
+Description (min 10 chars): Printer stopped responding after update
+Category [1] TECHNICAL, [2] ACCOUNT, [3] HARDWARE: 1
+Priority [1] LOW, [2] MEDIUM, [3] HIGH, [4] CRITICAL: 2
+Deadline (YYYY-MM-DD HH:MM, empty = none): 2030-12-06 12:00
+Component (network/email/...): printer
+[LOG] ... TicketCreated: Ticket 'HP-0987' created [TECHNICAL/MEDIUM]
+[console] [#12] Ticket 'HP-0987' created [TECHNICAL/MEDIUM]
+Created ticket HD-0012 [OPEN]
 ```
 
-### Lifecycle (BR-1 / BR-2 / BR-3)
+For ACCOUNT it asks for `Affected account`, for HARDWARE it asks for
+`Asset tag (PC-1234)` and `Location`. Try leaving one of those empty — you'll
+get a `Rejected: 'component' is required ...` style message. An unknown
+component, a 2-character title, or a deadline like "yesterday" are all caught
+too.
+
+Then try the rest:
+
 ```
-[7] HD-0004 -> 3 (close)  -> Rejected: Cannot close: the ticket must be resolved first.
-[7] HD-0012 -> 1          -> Ticket HD-0012 is now IN_PROGRESS.
-[7] HD-0012 -> 2 -> ""    -> Rejected: A resolution note (min 3 chars) is required ...
-[7] HD-0012 -> 2 -> "Replaced the print driver" -> RESOLVED.
-[7] HD-0012 -> 3          -> CLOSED (Closed + Resolution note visible in [3]).
-[7] HD-0010 -> 4          -> IN_PROGRESS  (closed 2 days ago: within window).
-[7] HD-0011 -> 4          -> Rejected: ... more than 7 days ago (window expired).
-[7] HD-0001 -> 4          -> Rejected: Cannot reopen: the ticket is already open.
-[7] HD-0013 -> 9          -> Unknown action - nothing changed.
+[2]             -> list, CRITICAL tickets first by default
+[4] -> 2 -> [2] -> now sorted by earliest deadline, tickets without one last
+[3] -> HD-0012  -> full details, including Deadline / Assigned staff / Closed
+
+[5] -> HD-0012 -> AUTO     -> Assigned HD-0012 -> staff #5.
+[5] -> HD-0013 -> 2        -> Assigned HD-0013 -> staff #2.
+[5] -> HD-0014 -> abc      -> Not a staff id: 'abc' - nothing changed.
+[5] -> HD-0009            -> BR-7: only OPEN or IN_PROGRESS tickets can be assigned.
+[6]             -> workloads, two free staff get picked first by AUTO
 ```
 
-### Verify the invisible side effects
+Lifecycle is where the rules show up:
+
+```
+[7] -> HD-0004 -> 3        -> Rejected: Cannot close: the ticket must be resolved first.
+[7] -> HD-0012 -> 1        -> IN_PROGRESS
+[7] -> HD-0012 -> 2 -> ""  -> Rejected: A resolution note (min 3 chars) is required ...
+[7] -> HD-0012 -> 2 -> "Replaced the print driver" -> RESOLVED
+[7] -> HD-0012 -> 3        -> CLOSED
+[7] -> HD-0010 -> 4        -> IN_PROGRESS  (closed 2 days ago, still inside the window)
+[7] -> HD-0011 -> 4        -> Rejected: ... more than 7 days ago (window expired)
+```
+
+There's a `[LOG]` line for every event, and `[URGENT]` appears only for HIGH and
+CRITICAL tickets. If you want to check that activity was actually stored, not
+just printed:
+
 ```powershell
 .\.venv\Scripts\python.exe -c "from helpdesk.database.database import Database; from helpdesk.repositories.activity_repository import ActivityRepository; print([(a.ticket_id,a.action) for a in ActivityRepository(Database('helpdesk.db')).list_for(12)])"
 ```
-Expected: `[(12, 'TicketCreated'), (12, 'TicketStatusChanged'), ...]`
 
-Reset any time with `Remove-Item helpdesk.db`, then re-run the seed.
+## How the code is laid out
 
----
-
-## 3. Pattern map (roles)
-
-| Pattern | Role | Code |
-| --- | --- | --- |
-| **Factory Method** | Creator (abstract) | `patterns/factory/abstract_creator.py::TicketCreator` |
-| | Concrete Creators | `technical_creator.py`, `account_creator.py`, `hardware_creator.py` |
-| | Product / Concrete Products | `models/ticket.py::Ticket` + `TechnicalTicket`, `AccountTicket`, `HardwareTicket` |
-| | Registry | `patterns/factory/__init__.py::CREATOR_REGISTRY` |
-| **State** | Context | `models/ticket.py::Ticket` |
-| | Abstract / Concrete States | `patterns/state/base_state.py::TicketState`; `states.py::OpenState, InProgressState, ResolvedState, ClosedState` |
-| | Singletons | `OPEN_STATE`, `IN_PROGRESS_STATE`, `RESOLVED_STATE`, `CLOSED_STATE` |
-| **Strategy** | Abstract + Concrete (ordering) | `patterns/strategy/ordering_strategies.py` (PRIORITY, DEADLINE) |
-| | Abstract + Concrete (assignment) | `patterns/strategy/assignment_strategies.py` (`FewestOpenTicketsStrategy`) |
-| | Contexts | `services/ticket_service.py`, `services/assignment_service.py` |
-| **Observer** | Subject | `patterns/observer/publisher.py::TicketEventPublisher` |
-| | Interface + Concrete Observers | `patterns/observer/observers.py` (`ConsoleNotificationObserver`, `ActivityLogObserver`) |
-| | Events | `patterns/observer/events.py` |
-| **Decorator** | Component / ConcreteComponent | `TicketObserver` / `ConsoleNotificationObserver` |
-| | Base + Concrete Decorators | `patterns/decorator/notification_decorators.py` (`LoggingNotificationDecorator`, `UrgentNotificationDecorator`) |
-| | Composition root | `main.py::build_application` builds `Logging(Urgent(Console))` |
-
-**Explicit non-patterns:** `state_for()` is an infrastructure dict lookup (no
-creator hierarchy); `ConsoleNotificationService` is a channel interface;
-repositories are Data Mapper-style persistence, not a GoF pattern.
-
-Dependency direction: `cli -> services -> patterns -> models -> database`;
-domain never imports services, repositories or CLI. States import `Ticket`
-only under `TYPE_CHECKING`, which breaks the import cycle.
-
----
-
-## 4. UML-style diagrams (Mermaid)
-
-### Factory Method
-
-```mermaid
-classDiagram
-    class TicketCreator { <<abstract>> +create(**fields)* Ticket }
-    class TechnicalTicketCreator { +create(**fields) Ticket }
-    class AccountTicketCreator { +create(**fields) Ticket }
-    class HardwareTicketCreator { +create(**fields) Ticket }
-    class Ticket { +category +priority +state }
-    class TechnicalTicket
-    class AccountTicket
-    class HardwareTicket
-    class CREATOR_REGISTRY { <<dict>> }
-    TicketCreator <|-- TechnicalTicketCreator
-    TicketCreator <|-- AccountTicketCreator
-    TicketCreator <|-- HardwareTicketCreator
-    Ticket <|-- TechnicalTicket
-    Ticket <|-- AccountTicket
-    Ticket <|-- HardwareTicket
-    TechnicalTicketCreator ..> TechnicalTicket : creates
-    CREATOR_REGISTRY o-- TicketCreator
+```
+src/helpdesk/
+  cli/          menu and console printing
+  services/     TicketService, AssignmentService (the use cases)
+  patterns/     state, factory, strategy, observer, decorator
+  models/       Ticket, Staff, validators, exceptions, token enums
+  repositories/ all the SQL, through Database
+  database/     schema, connection helpers, seed
+tests/          pytest suite
 ```
 
-### State
+Domain code never imports the CLI or a service, and the only SQL lives in the
+database/repositories layer.
+
+Where each pattern ended up:
+
+| Pattern | Where it lives |
+| --- | --- |
+| Factory Method | `patterns/factory/` — `TicketCreator`, three concrete creators and `CREATOR_REGISTRY`. `Ticket` is the product base; `TechnicalTicket`, `AccountTicket` and `HardwareTicket` are the products. |
+| State | `patterns/state/` — `TicketState` plus Open / InProgress / Resolved / Closed. `Ticket` is the context and just delegates its lifecycle calls. |
+| Strategy | `patterns/strategy/` — two ordering strategies and the fewest-open assignment strategy. `TicketService` and `AssignmentService` hold one each and can swap them at runtime. |
+| Observer | `patterns/observer/` — `TicketEventPublisher` notifies the console and activity-log observers about created/assigned/status-changed events. |
+| Decorator | `patterns/decorator/notification_decorators.py` — wraps the same `TicketObserver` interface. `main.py` builds `Logging(Urgent(Console))`. |
+
+Two things that look like patterns but aren't: `state_for()` in the state module
+is just a dict lookup to rebuild a state when reading from SQLite (no creator
+hierarchy, so not a Factory Method), and `ConsoleNotificationService` is only
+the channel the observer prints through.
+
+The lifecycle matrix is in one place only — `patterns/state/states.py`. Every
+rejected transition raises `InvalidTransitionError` with a reason; there are no
+silent no-ops.
 
 ```mermaid
 stateDiagram-v2
@@ -185,55 +158,14 @@ stateDiagram-v2
     RESOLVED --> CLOSED : close
     RESOLVED --> IN_PROGRESS : reopen (not fixed)
     CLOSED --> IN_PROGRESS : reopen within 7 days
-    CLOSED --> CLOSED : reopen after 7 days -> InvalidTransitionError
+    CLOSED --> CLOSED : reopen after 7 days -> error
 ```
 
-All other cells are explicit rejections with reasons; `tests/test_state_matrix.py`
-pins the full 4x4 matrix. BR-2 boundary is inclusive at 7 days (1 ms scheduling
-tolerance; 1 second over is refused). Reopen clears `closed_at` and the old note.
+The full 4x4 version of that table is pinned by `tests/test_state_matrix.py`.
+The 7-day reopen boundary counts as inclusive; a millisecond of clock jitter is
+fine, one second past it is refused.
 
-### Strategy
-
-```mermaid
-classDiagram
-    class TicketOrderingStrategy { <<abstract>> +order(tickets)* List }
-    class PriorityOrderingStrategy
-    class DeadlineOrderingStrategy
-    class TicketService { -ordering +set_ordering_strategy() }
-    class AssignmentStrategy { <<abstract>> +select(candidates, workloads)* int }
-    class FewestOpenTicketsStrategy
-    class AssignmentService { -strategy +assign() }
-    TicketOrderingStrategy <|-- PriorityOrderingStrategy
-    TicketOrderingStrategy <|-- DeadlineOrderingStrategy
-    TicketService o-- TicketOrderingStrategy
-    AssignmentStrategy <|-- FewestOpenTicketsStrategy
-    AssignmentService o-- AssignmentStrategy
-```
-
-### Observer + Decorator
-
-```mermaid
-classDiagram
-    class TicketObserver { <<abstract>> +update(event)* }
-    class ConsoleNotificationObserver
-    class ActivityLogObserver
-    class NotificationDecorator { -wrapped +update(event) }
-    class LoggingNotificationDecorator
-    class UrgentNotificationDecorator
-    class TicketEventPublisher { +subscribe() +unsubscribe() +publish() }
-    TicketObserver <|-- ConsoleNotificationObserver
-    TicketObserver <|-- ActivityLogObserver
-    TicketObserver <|-- NotificationDecorator
-    NotificationDecorator <|-- LoggingNotificationDecorator
-    NotificationDecorator <|-- UrgentNotificationDecorator
-    NotificationDecorator o-- TicketObserver : wraps ONE
-    TicketEventPublisher o-- TicketObserver : notifies MANY
-```
-
-Events are immutable; `UrgentNotificationDecorator` uses `dataclasses.replace`,
-so a shared event is never mutated. The publisher isolates observer failures.
-
-### Wiring (composition root)
+This is how the pieces are connected at startup:
 
 ```mermaid
 flowchart TB
@@ -253,113 +185,94 @@ flowchart TB
     AR --> DB
 ```
 
----
+`main.py::build_application()` is the only place that knows the concrete
+classes. That's also the only place the decorator stack is assembled, so the
+observers themselves never had to change.
 
-## 5. Database design
+## Database
 
-SQLite (`helpdesk.db`). `Database.initialize()` executes the schema in
-`src/helpdesk/database/database.py` (safe to call repeatedly).
+The schema is in `database/database.py` and `initialize()` can be called as many
+times as you like. Four tables:
 
-| Table | Columns / notes |
+- `staff` — id, name, role, created_at.
+- `tickets` — the one wide table with all ticket fields: title, description,
+  category, priority, status, timestamps, deadline, assigned staff, the three
+  category-specific fields, `closed_at` and `resolution_note`.
+- `ticket_activity` — what the activity observer writes.
+- `notifications` — kept for the notification repository contract.
+
+Category, priority and status have CHECK constraints so bad values can't reach
+the database even if a validator is missed. Dates are stored as ISO-8601 text
+and parsed back in the repositories. Foreign keys are turned on for every
+connection (SQLite doesn't do that by default), writes go through a transaction
+that rolls back on failure, and there are indexes on the columns the
+repositories actually filter by.
+
+Keeping one wide table was deliberate: all three ticket products use the same
+save/load code, only their Python behaviour differs.
+
+The seed puts in 6 staff and 11 tickets. Workloads come out as 2, 2, 1, 1, 0, 0
+so two AUTO assignments reliably pick staff 5 then 6. Two closed tickets are
+there for the reopen demo: `Outage came back` (2 days ago, allowed) and `Dead
+dock station` (10 days ago, refused). Their `closed_at` values are relative to
+the current date so the demo keeps working later; the rest of the seed is
+frozen at `FAKE_NOW = 2026-11-02 09:00Z`.
+
+## Rules we had to follow
+
+| Rule | How it's handled |
 | --- | --- |
-| `staff` | `id`, `full_name`, `role`, `created_at` (ISO-8601; seed uses FAKE_NOW - N days; also BR-8 tie-break) |
-| `tickets` | `id`, `title`, `description`, `category`, `priority`, `status`, `created_at`, `updated_at`, `deadline`, `assigned_staff_id`, `technical_component`, `affected_account`, `asset_tag`, `location`, `closed_at`, `resolution_note` |
-| `ticket_activity` | `id`, `ticket_id` (FK ON DELETE CASCADE), `action`, `description`, `created_at` |
-| `notifications` | `id`, `ticket_id` (FK ON DELETE SET NULL), `recipient`, `channel`, `message`, `sent_at` |
+| BR-1 | Legal state transitions; matrix lives in `states.py` |
+| BR-2 | Reopen only within 7 days of closing |
+| BR-3 | Resolution note must be at least 3 characters, and is cleared on reopen |
+| BR-4 | Priority order: CRITICAL > HIGH > MEDIUM > LOW, oldest first |
+| BR-5 | Deadline order: earliest first, no-deadline tickets last |
+| BR-6 | TECHNICAL needs a component, ACCOUNT an account, HARDWARE a tag and location |
+| BR-7 | Only OPEN or IN_PROGRESS tickets can be assigned |
+| BR-8 | AUTO assignment picks the fewest OPEN+IN_PROGRESS tickets |
+| BR-9 | Uppercase category/priority/status tokens everywhere, enforced by validators and CHECKs |
+| FR-10 | Ordering strategy can be changed while the app is running |
 
-CHECK constraints: category in `TECHNICAL/ACCOUNT/HARDWARE`, priority in
-`LOW/MEDIUM/HIGH/CRITICAL`, status in `OPEN/IN_PROGRESS/RESOLVED/CLOSED`.
-One wide table is intentional: all three products share one persistence
-round-trip; only Python behaviour differs.
+`tests/test_state.py`, `test_state_matrix.py`, `test_reopen_window.py`,
+`test_factory.py`, `test_strategy.py`, `test_validator_edges.py`,
+`test_repository_edges.py`, `test_seed.py`, `test_integration.py`,
+`test_integration_suite.py`, `test_cli_parsing.py` and the older service/observer
+tests cover these. Every test gets its own temporary database, so they don't
+interfere with each other or with your real `helpdesk.db`.
 
-Integrity: `PRAGMA foreign_keys = ON` per connection; writes use
-`Database.transaction()` (commit/rollback), reads use `Database.connection()`.
-Datetimes cross the boundary as ISO-8601 text; `_as_utc()` prevents naive/aware
-comparison errors. Indexes: `status`, `priority`, `category`, `assigned_staff_id`,
-`deadline`, `ticket_activity.ticket_id`.
-
-Seed invariants: 6 staff, 11 tickets; workloads 1=2, 2=2, 3=1, 4=1, 5=0, 6=0,
-so two AUTO assignments pick staff 5 then 6. `Outage came back` (closed 2 days
-ago) demonstrates an allowed reopen; `Dead dock station` (10 days ago) a refused
-one. Those two timestamps use the wall clock; everything else uses
-`FAKE_NOW = 2026-11-02 09:00Z`.
-
----
-
-## 6. Business rules and traceability
-
-| Rule | Implementation | Evidence (pytest file) |
-| --- | --- | --- |
-| BR-1 lifecycle matrix | `patterns/state/states.py` | `test_state.py`, `test_state_matrix.py` |
-| BR-2 7-day reopen window | `ClosedState.reopen` | `test_reopen_window.py` |
-| BR-3 resolution note >= 3 | `validate_resolution_note` | `test_validator_edges.py`, `test_state.py` |
-| BR-4 priority ordering | `PriorityOrderingStrategy` | `test_strategy.py` |
-| BR-5 deadline ordering, nulls last | `DeadlineOrderingStrategy` | `test_strategy.py` |
-| BR-6 category mandatory fields | Factory creators | `test_factory.py` |
-| BR-7 assignment eligibility | `AssignmentService.assign` | `test_integration.py`, `test_integration_suite.py` |
-| BR-8 least-loaded assignment | `FewestOpenTicketsStrategy` + workload counts | `test_strategy.py`, `test_seed.py` |
-| BR-9 canonical tokens | `ticket_types.py`, validators, DB CHECKs | `test_validators.py`, `test_validator_edges.py` |
-| FR-10 runtime strategy switch | `set_ordering_strategy`, CLI option 4 | `test_strategy.py`, `test_integration.py` |
-| Observer / Decorator | publisher, observers, decorator stack | `test_observer.py`, `test_decorator.py`, `test_integration*.py` |
-| CLI parsing | `cli/menu.py` | `test_cli_parsing.py` |
-| Idempotent seed | `database/seed.py` | `test_seed.py` |
-
----
-
-## 7. Testing
+## Tests and CI
 
 ```powershell
-pytest        # 207 passed, 7 skipped
+pytest
 ```
 
-The 7 skips are intentional: allowed cells in the BR-1 matrix test, where a
-rejection cannot occur. Tests use one isolated temp database per test
-(`tests/conftest.py`, NFR-4). CI: `.github/workflows/ci.yml` runs on
-`windows-latest` with Python 3.13.
+Last run here: **207 passed, 7 skipped**. The skips are on purpose — they're the
+cells of the state matrix where the transition is allowed, so there's no
+rejection message to check.
 
-Integration coverage crosses at least two boundaries (CLI/service, service/
-repository, publisher/observer/decorator/DB). The G-series demos are mapped in
-section 2 above: G1 create, G2 ordering, G3 AUTO assignment, G4 illegal
-transition, G5 reopen windows, G6 notifications/decorator output.
+GitHub Actions runs the same suite on `windows-latest` with Python 3.13
+(`.github/workflows/ci.yml`). We need 3.11+ anyway because of `StrEnum`.
 
----
+## A few decisions worth mentioning
 
-## 8. Compliance checklist
+- `Ticket.status` still returns the stored uppercase code because some older
+  callers expect that. `status_display` returns "Open", "In Progress" etc. if
+  you want the readable version.
+- `models/states.py` and `patterns/observer/observer.py` just re-export things
+  from their "proper" packages. They're there so older imports don't break.
+- The two BR-2 seed timestamps are wall-clock relative, as mentioned above.
+  Everything else in the seed is fixed.
 
-- [x] Five patterns implemented with the roles listed in section 3.
-- [x] BR-1..BR-9, FR-10 implemented and tested.
-- [x] Single git branch `main`; CI updated to Windows / Python 3.13.
-- [x] No printing in domain/services (only CLI and decorators).
-- [x] No raw SQL outside `Database` and repositories.
-- [x] Idempotent, deterministic seed; wall-clock only for BR-2 demo tickets.
-- [x] `python -m pytest -q`: 207 passed, 7 intentional skips.
-- [x] CLI and composition-root smoke tests pass.
+## What each milestone added
 
-Documented deviations: `Ticket.status` is an alias of `status_code`
-(`status_display` is the readable name); `models/states.py` and
-`patterns/observer/observer.py` are thin re-export shims for old imports;
-BR-2 seed timestamps are wall-clock relative so the demo works on any date.
+**M1 - the foundation.** Schema, `Database` with its transaction/read contexts,
+the repositories, the event publisher and the first version of `TicketService`.
+Also the temporary-database test fixture.
 
----
+**M2 - the patterns.** State (with the whole lifecycle matrix), Factory Method
+(the three creators and products), Strategy (ordering and assignment),
+`AssignmentService` and the BR-7 guard.
 
-## 9. Individual contributions (M1 / M2 / M3)
-
-### M1 - Foundation
-- Schema, `Database` connection/transaction lifecycle, repositories (staff,
-  ticket, activity, notifications), ISO-8601 datetime handling.
-- Observer core: `TicketEventPublisher`, immutable events, failure isolation.
-- `TicketService` create/list/get with service-owned clock; `tmp_path` DB fixture.
-
-### M2 - Patterns
-- State: Context `Ticket`, abstract state, four concrete states, central BR-1
-  matrix, BR-2 window, reasons for every rejection.
-- Factory Method: abstract creator, three creators, registry, three products
-  with category behaviour; mandatory fields enforced at creation.
-- Strategy: ordering (priority/deadline) and assignment (fewest-open) policies;
-  `AssignmentService` enforces BR-7 and publishes `StaffAssignedEvent`.
-
-### M3 - Wiring and delivery
-- Decorator stack built only in the composition root; no observer was edited.
-- CLI extended to options 1-7 with `HD-<id>` parsing and defensive input.
-- Deterministic/idempotent seed, repository hardening, indexes.
-- CI, this documentation, and the full unit/matrix/edge/integration test suite.
+**M3 - wiring and finishing.** The decorator stack, the CLI expanded to options
+1-7, the seed, hardening (indexes, datetime edge cases, `updated_at` default),
+CI and the integration tests.

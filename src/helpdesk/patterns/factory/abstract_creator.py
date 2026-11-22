@@ -1,10 +1,7 @@
-"""Factory Method (GoF: Creational) - abstract creator.
+"""Common base for the category creators.
 
-Factory Method: AbstractCreator (TicketCreator).
-
-One creator per category knows: (a) the category-specific mandatory fields
-and their validation, (b) the default priority when the caller does not
-choose one, (c) the concrete Product class to instantiate (BR-6).
+Each creator knows the extra fields its category needs, its default
+priority, and which Ticket subclass to build (BR-6).
 """
 
 from abc import ABC, abstractmethod
@@ -38,7 +35,7 @@ _DEFAULT_PRIORITY: dict[str, str] = {
 
 
 class TicketCreator(ABC):
-    """Factory Method: Creator - declares the factory method."""
+    """Declares create(); subclasses fill in the category details."""
 
     category: str = ""
     default_priority: str = TicketPriority.MEDIUM

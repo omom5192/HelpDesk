@@ -1,10 +1,7 @@
-"""State: ConcreteStates - OpenState, InProgressState, ResolvedState,
-ClosedState.
+"""The four ticket states and the lifecycle matrix.
 
-Context: models.ticket.Ticket. Import direction is one-way only:
-states -> base_state (+ models without tickets). models/ticket.py imports
-the singletons from here at runtime; states.py refers to Ticket by name
-under TYPE_CHECKING - that kills the import cycle.
+Ticket is the context. Imports go one way: states -> base_state. Ticket is
+only imported under TYPE_CHECKING to avoid a circular import.
 """
 
 from datetime import UTC, datetime, timedelta
@@ -20,7 +17,7 @@ if TYPE_CHECKING:
 
 
 class OpenState(TicketState):
-    """State: ConcreteState (fresh ticket)."""
+    """A newly created ticket."""
 
     status_code = TicketStatus.OPEN
     display_name = "Open"
@@ -44,7 +41,7 @@ class OpenState(TicketState):
 
 
 class InProgressState(TicketState):
-    """State: ConcreteState (actively being worked on)."""
+    """Someone is working on it."""
 
     status_code = TicketStatus.IN_PROGRESS
     display_name = "In Progress"
@@ -72,7 +69,7 @@ class InProgressState(TicketState):
 
 
 class ResolvedState(TicketState):
-    """State: ConcreteState (fix delivered, not yet closed)."""
+    """Fix delivered, waiting to be closed."""
 
     status_code = TicketStatus.RESOLVED
     display_name = "Resolved"
@@ -93,7 +90,7 @@ class ResolvedState(TicketState):
 
 
 class ClosedState(TicketState):
-    """State: ConcreteState (terminal outside the BR-2 reopen window)."""
+    """Terminal, except inside the 7-day reopen window."""
 
     status_code = TicketStatus.CLOSED
     display_name = "Closed"
