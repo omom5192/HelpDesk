@@ -1,0 +1,118 @@
+HELPDESK – BİLET YÖNETİM SİSTEMİ PROJE RAPORU
+Ders: Yazılım Tasarım Kalıpları (Design Patterns)
+Teknolojiler: Python 3.11+ (Standart Kütüphane), SQLite, Pytest, GitHub Actions
+
+1. Giriş ve Projenin Amacı
+HelpDesk, teknik destek süreçlerinde açılan kullanıcı taleplerinin (biletlerin) oluşturulması,
+kategorize edilmesi, önceliklendirilmesi, destek personeline atanması ve yaşam döngüsü boyunca
+takip edilmesi için geliştirilmiş konsol tabanlı bir bilet yönetim sistemidir.
+
+Projenin temel akademik amacı, karmaşık iş kurallarını dağınık ve bakımı zor if/else blokları 
+yerine nesne yönelimli tasarım ilkeleri (SOLID) ve beş temel GoF tasarım kalıbı (Factory Method, 
+State, Strategy, Observer, Decorator) kullanarak modüler, test edilebilir ve genişletilebilir 
+bir mimari üzerinde gerçekleştirmektir. Sistem, dış kütüphane bağımlılığı olmadan yalnızca Python 
+standart kütüphanesi ve SQLite ile çalışacak şekilde tasarlanmıştır.
+
+
+2. Sistem Mimarisi ve Katman Yapısı
+
+Uygulama, sorumlulukların ayrılması (Separation of Concerns) ilkesine uygun olarak katmanlı mimariyle yapılandırılmıştır:
+
+* CLI Katmanı (cli/): ConsoleMenu sınıfı üzerinden kullanıcı etkileşimini sağlayan 8 seçenekli (0–7) konsol 
+  menüsü ve girdi doğrulama mekanizmasını içerir. Hatalı girdilerde uygulama çökmeden açıklayıcı hata mesajları üretir.
+
+* Servis Katmanı (services/): TicketService ve AssignmentService sınıfları aracılığıyla bilet oluşturma, 
+  listeleme, durum değiştirme ve personel atama iş akışlarını yönetir.
+
+* Tasarım Kalıpları Katmanı (patterns/): factory, state, strategy, observer ve decorator paketleri 
+  altında kalıpların soyut ve somut uygulamalarını içerir.
+
+* Model Katmanı (models/): Ticket ve Staff alan varlıklarını, girdi doğrulayıcılarını (validators.py), 
+  özel istisna sınıflarını (exceptions.py) ve StrEnum tabanlı sabitleri içerir.
+* Veritabanı ve Repository Katmanı (database/, repositories/): SQLite bağlantısı, 
+  şema oluşturma, işlem (transaction) yönetimi, örnek veri yükleme (seed.py) ve tüm SQL sorgularının 
+  izole edildiği kalıcılık katmanıdır.
+
+Alan (domain) katmanı CLI’ye veya servis katmanına hiçbir şekilde bağımlı değildir. Tüm somut sınıfların 
+birbirine bağlandığı tek nokta (Composition Root) main.py içindeki build_application() fonksiyonudur. 
+Bu yapı, sistemin Open/Closed (Açık/Kapalı) prensibine uygun şekilde genişletilmesini sağlar.
+
+
+3. Uygulanan Tasarım Kalıpları
+
+Sistemde beş temel tasarım kalıbı birbirleriyle entegre biçimde çalışmaktadır:
+
+* Factory Method: Soyut TicketCreator sınıfı, kategori bazlı somut üreticiler (TechnicalTicketCreator, 
+  AccountTicketCreator, HardwareTicketCreator) ve CREATOR_REGISTRY kayıt mekanizması kullanılmıştır. 
+  Bu yapı sayesinde her bilet kategorisi kendi somut ürününü (TechnicalTicket, AccountTicket, 
+  HardwareTicket) üretir ve kategoriye özgü zorunlu alan doğrulamalarını (BR-6: teknik biletlerde bileşen, 
+  hesap biletlerinde etkilenen hesap, donanım biletlerinde demirbaş etiketi ve konum) merkezi biçimde uygular.
+
+* State: Ticket bağlamı (Context) üzerindeki yaşam döngüsü, soyut TicketState arayüzü ve dört somut durum 
+  sınıfı (OpenState, InProgressState, ResolvedState, ClosedState) ile modellenmiştir. Tüm 4×4 durum geçiş 
+  matrisi (BR-1) tek bir yerde tanımlıdır. Geçersiz geçişler sessizce yok sayılmaz, açıklayıcı bir 
+  InvalidTransitionError fırlatılır. Çözüm notunun en az 3 karakter olması (BR-3) ve kapatılan bir biletin 
+  yalnızca 7 gün içinde yeniden açılabilmesi (BR-2) kuralları da bu kalıp içinde denetlenir.
+
+* Strategy: İki farklı noktada uygulanmıştır. Birincisi, TicketOrderingStrategy arayüzünü uygulayan 
+  PriorityOrderingStrategy (BR-4: öncelik sırası ve eskilik) ve DeadlineOrderingStrategy 
+  (BR-5: en yakın son tarih önce, son tarihi olmayanlar sonda) sınıflarıdır; bu stratejiler uygulama yeniden 
+  başlatılmadan çalışma anında değiştirilebilir (FR-10). İkincisi, AssignmentStrategy arayüzünü uygulayan 
+  FewestOpenTicketsStrategy sınıfıdır; otomatik atamada (AUTO) en az açık/işlemde bileti olan destek personelini 
+  seçer (BR-8).
+
+* Observer: TicketEventPublisher (Subject) ve TicketObserver arayüzü üzerinden bilet oluşturma, atama ve durum 
+  değişikliği olayları değişmez (immutable) olay nesneleri olarak yayınlanır. ConsoleNotificationObserver olayları 
+  ekrana yazdırırken ActivityLogObserver her olayı veritabanındaki ticket_activity tablosuna kaydeder. Böylece servisler 
+  bildirim ve loglama ayrıntılarından tamamen ayrılır.
+
+* Decorator: NotificationDecorator taban sınıfından türetilen LoggingNotificationDecorator 
+  ve UrgentNotificationDecorator sınıfları, mevcut observer koduna dokunmadan main.py içinde 
+  Logging(Urgent(Console)) zinciriyle sarılır. Bu sayede tüm olaylar [LOG] etiketiyle kaydedilirken 
+  yalnızca HIGH ve CRITICAL öncelikli biletlere [URGENT] uyarısı eklenir.
+
+4. Veritabanı Tasarımı ve Veri Bütünlüğü
+
+Kalıcılık katmanı SQLite üzerinde dört tablodan oluşur: staff, tickets, ticket_activity ve notifications. 
+Üç farklı bilet alt türü için ayrı tablolar açmak yerine tek bir geniş tickets 
+tablosu (Single Table Inheritance yaklaşımı) tercih edilmiştir. Bu karar, kayıt ve okuma sorgularında kod tekrarını önlerken 
+bilet türüne özgü davranışları Python katmanında tutmayı sağlar.
+
+Veri bütünlüğü ve performans için şu teknik önlemler uygulanmıştır:
+
+* Kısıtlar ve Yabancı Anahtarlar: Kategori, öncelik ve durum sütunları büyük harf kuralını (BR-9) zorunlu 
+  kılan CHECK kısıtlarıyla korunmaktadır. SQLite varsayılan olarak yabancı anahtarları kapalı tuttuğu için 
+  her bağlantıda PRAGMA foreign_keys = ON çalıştırılır.
+
+* İşlem Güvenliği ve İndeksleme: Yazma işlemleri hata durumunda otomatik geri alma (rollback) yapan transaction 
+  blokları içinde yürütülür. Sık filtrelenen sütunlarda (status, priority, category, assigned_staff_id, 
+  deadline ve ticket_activity.ticket_id) indeksler tanımlanmıştır.
+
+* Tarih Yönetimi ve Seed Verisi: Tarihler ISO-8601 metin biçiminde saklanır ve sıralama stratejisinde _as_utc() 
+yardımcısıyla saat dilimi tutarlılığı sağlanır. seed.py betiği idempotent (tekrar çalıştırıldığında veriyi çoğaltmayan) 
+yapıda olup 6 personel ve 11 örnek bilet yükleyerek otomatik atama ve 7 günlük yeniden açma kurallarının doğrudan 
+test edilmesini sağlar.
+
+5. Test Süreci ve Sürekli Entegrasyon (CI)
+
+Sistemin doğruluğu pytest çerçevesiyle kapsamlı biçimde doğrulanmıştır:
+
+* Test Sonuçları: Toplam 207 test başarıyla geçti; 7 test bilinçli olarak atlandı 
+  (atlanan testler, 4×4 durum matrisinde geçişe izin verilen hücrelerde hata mesajı üretilmemesini temsil eder).
+
+* Test Kapsamı: Her test kendi izole geçici SQLite veritabanında çalışır. Birim testlerinin yanı sıra, 
+  tüm 16 durum geçişini kapsayan matris testleri; 7 günlük yeniden açma sınır testleri; 
+  doğrulayıcı sınır değer testleri; repository/transaction testleri; seed idempotency testleri ve 
+  çok katmanlı entegrasyon testleri yer alır.
+* Sürekli Entegrasyon: .github/workflows/ci.yml üzerinden GitHub Actions ile windows-latest ortamında 
+  Python 3.13 üzerinde tüm test paketi otomatik olarak çalıştırılmaktadır.
+
+6. Sonuç ve Değerlendirme
+
+Proje üç aşamalı (M1: Temel altyapı ve veritabanı, M2: Tasarım kalıplarının uygulanması, 
+M3: Decorator entegrasyonu, CLI genişletmesi, seed ve CI) bir geliştirme süreci sonunda 
+kararlı ve çalışır duruma getirilmiştir. Beş tasarım kalıbının gerçek iş kuralları (BR-1 – BR-9 ve FR-10) 
+etrafında birlikte kullanılması, kodun okunabilirliğini ve bakım kolaylığını artırmış; yeni bir bilet kategorisi, 
+yeni bir sıralama algoritması veya yeni bir bildirim kanalı (ör. e-posta, webhook) eklemeyi mevcut kodu bozmadan 
+mümkün kılmıştır. Gelecek çalışmalarda mevcut servis katmanı korunarak konsol arayüzünün yanına bir REST API 
+veya web arayüzü eklenebilir
